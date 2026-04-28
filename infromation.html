@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLForge Setup & Migration Guide</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 40px 20px; background-color: #f8fafc; }
+        h1 { color: #1e293b; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-top: 40px; }
+        h2 { color: #334155; margin-top: 30px; }
+        pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; font-family: "JetBrains Mono", monospace; }
+        .tip { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+        .important { background: #fff1f2; border-left: 4px solid #ef4444; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+        code { background: #e2e8f0; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>SQLForge: Project Setup & Migration</h1>
+
+    <div class="tip">
+        <strong>Tip:</strong> Both services are ready to be run locally for testing. Ensure you have Node.js and PostgreSQL installed.
+    </div>
+
+    <h2>1. Running the Application</h2>
+    
+    <h3>Start the Backend (Python FastAPI)</h3>
+    <pre>cd backend
+pip install -r requirements.txt
+python -m uvicorn main:app --reload</pre>
+
+    <h3>Start the Frontend (React + Vite)</h3>
+    <pre>cd frontend
+npm install
+npm run dev</pre>
+
+    <h2>2. Migration to Another Computer</h2>
+    <p>Follow these steps to move this project to a new machine:</p>
+
+    <div class="important">
+        <strong>Important:</strong> Do not copy <code>node_modules</code> or <code>venv</code> folders. These should be recreated on the new machine to ensure compatibility.
+    </div>
+
+    <h3>Step A: Transfer Files</h3>
+    <p>Copy the project folder (excluding the folders mentioned above) to your new computer.</p>
+
+    <h3>Step B: Database Re-Setup</h3>
+    <p>Create the database and users in your new PostgreSQL instance:</p>
+    <pre>CREATE DATABASE sql_game;
+CREATE USER sql_user WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE sql_game TO sql_user;</pre>
+
+    <h3>Step C: Initialize Environment</h3>
+    <p>In the <code>backend/</code> folder of the new computer, create a <code>.env</code> file:</p>
+    <pre>DATABASE_URL=postgresql://sql_user:your_secure_password@localhost:5432/sql_game
+SECRET_KEY=generate_a_random_string</pre>
+
+    <h2>3. Database Initialization (Scripts)</h2>
+    <p>Run these scripts in order to set up the core tables and the isolated sandbox environment:</p>
+    
+    <h3>I. Core Schema</h3>
+    <p>Execute this as a superuser to create tables for users, levels, and submissions:</p>
+    <pre>psql -U postgres -d postgres -f database\schema.sql</pre>
+
+    <h3>II. Sandbox Setup</h3>
+    <p>This creates the restricted <code>sandbox_user</code> and the execution schema:</p>
+    <pre>psql -U postgres -d postgres -f database\sandbox_setup.sql</pre>
+
+    <p><em>Note: If you use pgAdmin or DBeaver, you can simply open these files and execute them in the SQL editor.</em></p>
+
+    <h2>4. Seeding Data</h2>
+    <p>To populate your new database with the SQL topics and level definitions:</p>
+    <pre>cd backend
+python seed.py</pre>
+
+</body>
+</html>

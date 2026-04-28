@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Project Report - SQLForge</title>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12pt; padding: 40px; max-width: 900px; margin: auto; line-height: 1.6; color: #334155; }
+        h1 { font-size: 22pt; font-weight: 800; text-align: center; margin-top: 60px; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        h1.first { margin-top: 0; border-bottom: none; }
+        h2 { font-size: 18pt; font-weight: 700; color: #1e293b; margin-top: 40px; }
+        h3 { font-size: 14pt; font-weight: 600; color: #334155; margin-top: 20px; }
+        p { margin-bottom: 15px; }
+        .center { text-align: center; }
+        table { border-collapse: collapse; width: 100%; margin: 25px 0; background: #fff; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+        th { background-color: #f8fafc; font-weight: 600; }
+        pre { background: #f1f5f9; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; overflow-x: auto; font-family: 'Fira Code', monospace; font-size: 10pt; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; background: #e2e8f0; }
+        .download-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        @media print {
+            .download-btn { display: none; }
+            body { padding: 0; margin: 10mm; }
+        }
+    </style>
+</head>
+<body>
+    <button class="download-btn" onclick="window.print()">Download Report</button>
+
+    <div class="center">
+        <h1 class="first">PROJECT REPORT</h1>
+        <div style="margin: 40px 0;">
+            <h2 style="font-size: 28pt; margin-bottom: 10px;">SQLForge</h2>
+            <p style="font-size: 16pt; color: #64748b;">Gamified SQL Learning & Sandbox Platform</p>
+        </div>
+
+        <p><strong>A Project Report Submitted in Partial Fulfillment</strong><br>
+        <strong>of the Requirements for the Degree of</strong><br>
+        <strong>Bachelor of Vocational in Information Technology (B. Voc. IT)</strong></p>
+
+        <div style="margin: 40px 0;">
+            <p><strong>Submitted By:</strong><br>
+            [NEHA MONDAL]<br>
+            <strong>Roll No:</strong> [Your Roll Number]</p>
+
+            <p><strong>Under the Guidance of:</strong><br>
+            [IMAM MEHDI]</p>
+        </div>
+
+        <p><strong>B.N.College(Autonomous)</strong><br>
+        <strong>Academic Year: 2025–2026</strong></p>
+    </div>
+
+    <h1>1. ABSTRACT</h1>
+    <p><strong>SQLForge</strong> is a modern, full-stack web application designed to revolutionize how students learn SQL. Unlike traditional multiple-choice platforms, SQLForge provides a <strong>Live SQL Sandbox</strong> where users write and execute real PostgreSQL queries against isolated schemas. The platform integrates gamification through a global leaderboard, personalized progress tracking, and 5 progressive levels of difficulty. Built with a <strong>FastAPI</strong> backend and a <strong>React</strong> frontend, it features a highly secure execution engine that prevents destructive operations through restricted database users and transaction rollback patterns. The system includes an administrative suite for designing custom levels, including schema definitions and automated win-condition validation using JSON result sets.</p>
+
+    <h1>2. INTRODUCTION</h1>
+    <p>Learning SQL effectively requires hands-on practice, but setting up local databases can be a barrier for beginners. SQLForge removes this barrier by providing an instantly accessible, browser-based environment for database experimentation.</p>
+    <h3>Objectives:</h3>
+    <ul>
+        <li>Provide a secure, isolated PostgreSQL sandbox for query execution.</li>
+        <li>Automate the validation of SQL results against "ground truth" data.</li>
+        <li>Enhance student engagement through a competitive global leaderboard.</li>
+        <li>Enable instructors to design complex challenges with custom schemas and seed data.</li>
+        <li>Track individual learning progress across different SQL topics (SELECT, WHERE, JOINs, Aggregations).</li>
+    </ul>
+
+    <h1>3. SYSTEM ARCHITECTURE</h1>
+    <p>The system follows a modern decoupled architecture:</p>
+    <ul>
+        <li><strong>Frontend:</strong> React 18 with Vite, featuring <strong>Monaco Editor</strong> for a professional IDE experience and <strong>Lucide React</strong> for iconography.</li>
+        <li><strong>Backend:</strong> FastAPI (Python 3.14), utilizing <strong>SQLAlchemy 2.0</strong> for ORM and <strong>Psycopg3</strong> for high-performance database communication.</li>
+        <li><strong>Database:</strong> PostgreSQL 18, utilizing a multi-role security model to isolate user execution from the main application state.</li>
+        <li><strong>Security:</strong> JWT (JSON Web Tokens) for stateless authentication and Role-Based Access Control (RBAC).</li>
+    </ul>
+
+    <h1>4. DATABASE DESIGN</h1>
+    <h3>Entity Relationship Model:</h3>
+    <pre>
+USERS (id, email, password_hash, is_admin, created_at)
+  |-- solves --> SUBMISSIONS (id, user_id, level_id, query, status, created_at)
+  
+LEVELS (id, title, description, difficulty, topic, schema_definition, expected_output)
+  |-- contains --> Submissions
+    </pre>
+
+    <h1>5. CORE FEATURES</h1>
+    <table>
+        <tr><th>Feature</th><th>Description</th></tr>
+        <tr><td><strong>SQL Sandbox</strong></td><td>Execute real queries in a restricted environment with instant data visualization.</td></tr>
+        <tr><td><strong>Validation Engine</strong></td><td>Automatic comparison of user query results against predefined JSON "win conditions".</td></tr>
+        <tr><td><strong>Level Editor</strong></td><td>Admin panel with Monaco SQL/JSON editors for designing complex database challenges.</td></tr>
+        <tr><td><strong>Gamification</strong></td><td>Global leaderboard ranking users by solve count and tracking "Completed" levels.</td></tr>
+        <tr><td><strong>Progress Tracking</strong></td><td>Personalized dashboard showing user statistics, global rank, and mastery badges.</td></tr>
+    </table>
+
+    <h1>6. SECURITY IMPLEMENTATION</h1>
+    <p>To prevent malicious SQL injection or destructive commands (like <code>DROP TABLE</code>), SQLForge implements three layers of security:</p>
+    <ol>
+        <li><strong>Restricted User:</strong> Queries are executed by a <code>sandbox_user</code> who only has <code>SELECT</code> and <code>INSERT</code> permissions on a specific schema.</li>
+        <li><strong>Transaction Isolation:</strong> Every user query is wrapped in a <code>BEGIN...ROLLBACK</code> block. This allows the system to check the result of an operation without permanently changing the database state.</li>
+        <li><strong>Schema Sandboxing:</strong> User queries are strictly confined to a temporary sandbox schema that is initialized and destroyed per-session.</li>
+    </ol>
+
+    <h1>7. TESTING & VALIDATION</h1>
+    <table>
+        <tr><th>Test Case</th><th>Input</th><th>Expected Result</th><th>Status</th></tr>
+        <tr><td>User Auth</td><td>Valid Credentials</td><td>JWT Token Issued / Dashboard Access</td><td>Pass</td></tr>
+        <tr><td>Level Creation</td><td>SQL Schema + JSON</td><td>Level appears on Dashboard & Home</td><td>Pass</td></tr>
+        <tr><td>Query Execution</td><td>SELECT * FROM employees</td><td>Table results rendered in UI</td><td>Pass</td></tr>
+        <tr><td>Win Condition</td><td>Correct WHERE clause</td><td>"✓ Completed" badge awarded</td><td>Pass</td></tr>
+        <tr><td>Admin Protection</td><td>Regular user to /admin</td><td>Auto-redirect to /dashboard</td><td>Pass</td></tr>
+    </table>
+
+    <h1>8. CONCLUSION</h1>
+    <p>SQLForge successfully provides a secure, interactive, and engaging environment for SQL education. By combining professional development tools (Monaco Editor) with gamified elements (Leaderboard/Badges), the platform bridges the gap between theoretical knowledge and practical database engineering. The system is scalable, secure, and ready for deployment in academic or professional training settings.</p>
+
+    <h1>9. APPENDIX</h1>
+    <h3>Project Structure</h3>
+    <pre>
+SQL Game/
+├── backend/
+│   ├── routers/ (auth, level, user routes)
+│   ├── main.py (FastAPI application)
+│   ├── models.py (SQLAlchemy models)
+│   └── sandbox.py (SQL Execution Engine)
+├── frontend/
+│   ├── src/pages (Home, Dashboard, Play, Admin, Leaderboard)
+│   ├── src/components (Navbar, Footer, ProtectedRoute)
+│   └── src/api/client.ts (Axios configuration)
+└── database/
+    ├── schema.sql (App tables)
+    └── sandbox_setup.sql (Security configuration)
+    </pre>
+
+    <div style="margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px;" class="center">
+        <p>© 2026 SQLForge Project Team. All Rights Reserved.</p>
+    </div>
+</body>
+</html>
