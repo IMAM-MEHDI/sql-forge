@@ -26,8 +26,9 @@ if not DATABASE_URL:
 # 4. Configure Connection Arguments (Critical for Supabase Pooler)
 connect_args = {}
 if DATABASE_URL and "pooler.supabase.com" in DATABASE_URL:
-    # Disable prepared statements to avoid PgBouncer errors
-    connect_args["prepare_threshold"] = 0
+    # Disable prepared statements entirely for PgBouncer/Supabase Pooler compatibility
+    # Using None is the absolute "off" switch for psycopg3
+    connect_args["prepare_threshold"] = None
 
 # 5. Create the Engine
 try:
