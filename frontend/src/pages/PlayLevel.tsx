@@ -37,6 +37,12 @@ export default function PlayLevel() {
   const [result, setResult] = useState<QueryResult | null>(null);
 
   useEffect(() => {
+    // Reset state immediately when ID changes for a "fresh" feel
+    setResult(null);
+    setQuery('');
+    setLoading(true);
+    window.scrollTo(0, 0);
+
     if (!localStorage.getItem('token')) {
       navigate('/login');
       return;
