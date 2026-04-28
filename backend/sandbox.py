@@ -2,7 +2,6 @@ import psycopg
 import os
 import logging
 from dotenv import load_dotenv
-from urllib.parse import urlparse, urlunparse
 
 load_dotenv()
 
@@ -10,45 +9,10 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sandbox")
 
-# 1. Fetch and Parse the main DATABASE_URL
+# We use the main DATABASE_URL - no more complex parsing!
 DATABASE_URL = os.getenv("DATABASE_URL")
-
-def derive_sandbox_url(main_url: str) -> str:
-    if not main_url:
-        return "postgresql://sandbox_user:sandbox_secure_password@localhost:5432/postgres"
-    
-    try:
-        # Standardize prefix for parsing
-        clean_url = main_url.replace("postgresql+psycopg://", "postgresql://")
-        u = urlparse(clean_url)
-        
-        # EXTRACT TENANT ID: In Supabase poolers, the username is usually 'postgres.tenant-id'
-        # We need our sandbox user to also have '.tenant-id' appended.
-        main_user = u.username or "postgres"
-        tenant_id = ""
-        if "." in main_user:
-            tenant_id = main_user.split(".")[-1]
-            
-        # Reconstruct the username with the tenant ID
-        sandbox_username = "sandbox_user"
-        if tenant_id:
-            sandbox_username = f"sandbox_user.{tenant_id}"
-            
-        logger.info(f"Deriving sandbox URL with user: {sandbox_username}")
-        
-        # Replace credentials but keep host, port, and database name
-        new_netloc = f"{sandbox_username}:sandbox_secure_password@{u.hostname}"
-        if u.port:
-            new_netloc += f":{u.port}"
-        else:
-            new_netloc += ":6543"
-            
-        return urlunparse(u._replace(netloc=new_netloc))
-    except Exception as e:
-        logger.error(f"Sandbox URL derivation failed: {e}")
-        return main_url
-
-SANDBOX_DB_URL = derive_sandbox_url(DATABASE_URL)
+if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 class SandboxExecutionError(Exception):
     pass
@@ -59,10 +23,10 @@ def execute_user_query(schema_definition: str, user_query: str):
     """
     conn = None
     try:
-        # 1. Connect to the database
-        # We use prepare_threshold=None for pooler compatibility
+        # 1. Connect using the main project credentials
+        # We disable prepared statements for pooler compatibility
         conn = psycopg.connect(
-            SANDBOX_DB_URL, 
+            DATABASE_URL.replace("postgresql+psycopg://", "postgresql://"), 
             prepare_threshold=None,
             connect_timeout=10
         )
@@ -70,22 +34,26 @@ def execute_user_query(schema_definition: str, user_query: str):
         conn.autocommit = False
         cursor = conn.cursor()
 
-        # 2. Enforce restrictions
+        # 2. DROP PERMISSIONS: "Put on the mask"
+        # We switch to the restricted sandbox_user role immediately
+        cursor.execute("SET ROLE sandbox_user;")
+        
+        # 3. Enforce restrictions
         cursor.execute("SET statement_timeout = '3s';")
         cursor.execute("SET search_path TO sandbox;")
 
-        # 3. Setup the Level Schema
+        # 4. Setup the Level Schema
         cursor.execute(schema_definition)
 
-        # 4. Filter malicious keywords
+        # 5. Filter malicious keywords
         upper_query = user_query.upper()
         if any(keyword in upper_query for keyword in ["DROP ", "DELETE ", "ALTER ", "TRUNCATE "]):
             raise SandboxExecutionError("Query contains restricted keywords. Only SELECT is allowed.")
 
-        # 5. Execute the User's Query
+        # 6. Execute the User's Query
         cursor.execute(user_query)
 
-        # 6. Fetch Results
+        # 7. Fetch Results
         if cursor.description:
             columns = [desc.name for desc in cursor.description]
             rows = cursor.fetchall()
@@ -94,7 +62,7 @@ def execute_user_query(schema_definition: str, user_query: str):
             columns = []
             result_data = []
 
-        # 7. Force Rollback
+        # 8. Force Rollback
         conn.rollback()
 
         return {"status": "success", "columns": columns, "data": result_data}
