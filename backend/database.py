@@ -5,25 +5,17 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 load_dotenv()
 
-# The primary database connection
+# 1. Fetch the Database URL
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Supabase URIs often start with postgresql:// but SQLAlchemy 2.0 + psycopg3 
-# requires postgresql+psycopg://. We also disable prepared statements for the pooler.
+# 2. Format the URL for SQLAlchemy 2.0 + psycopg3
 if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
-    
-    # Disable prepared statements for PgBouncer/Supabase Pooler compatibility
-    if "pooler.supabase.com" in DATABASE_URL:
-        if "?" in DATABASE_URL:
-            DATABASE_URL += "&prepare_threshold=0"
-        else:
-            DATABASE_URL += "?prepare_threshold=0"
 
+# 3. Fallback for Local Development
 if not DATABASE_URL:
-    # Fallback for local development ONLY
     if os.getenv("RENDER") or os.getenv("NETLIFY"):
-        raise ValueError("CRITICAL: DATABASE_URL is missing in the production environment variables!")
+         raise ValueError("CRITICAL: DATABASE_URL is missing in production environment!")
     
     DB_USER = os.getenv("DB_USER", "postgres")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "")
@@ -31,12 +23,20 @@ if not DATABASE_URL:
     DB_NAME = os.getenv("DB_NAME", "postgres")
     DATABASE_URL = f"postgresql+psycopg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:5432/{DB_NAME}"
 
+# 4. Configure Connection Arguments (Critical for Supabase Pooler)
+connect_args = {}
+if DATABASE_URL and "pooler.supabase.com" in DATABASE_URL:
+    # Disable prepared statements to avoid PgBouncer errors
+    connect_args["prepare_threshold"] = 0
+
+# 5. Create the Engine
 try:
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
 except Exception as e:
-    print(f"CRITICAL: Could not connect to database. Error: {e}")
-    # We still define engine to avoid NameErrors, but it will fail on use
+    print(f"CRITICAL: Engine creation failed: {e}")
+    # Final fallback
     engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
