@@ -14,7 +14,10 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
 if not DATABASE_URL:
-    # Fallback for development using individual components
+    # Fallback for local development ONLY
+    if os.getenv("RENDER") or os.getenv("NETLIFY"):
+        raise ValueError("CRITICAL: DATABASE_URL is missing in the production environment variables!")
+    
     DB_USER = os.getenv("DB_USER", "postgres")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "")
     DB_HOST = os.getenv("DB_HOST", "localhost")
