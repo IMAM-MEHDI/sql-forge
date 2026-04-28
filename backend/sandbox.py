@@ -4,12 +4,32 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Fetch credentials from environment
-SANDBOX_DB_URL = os.getenv("SANDBOX_DB_URL")
+load_dotenv()
 
-if not SANDBOX_DB_URL:
-    # Use os.environ.get with empty default to avoid hardcoded string detection
-    SANDBOX_DB_URL = os.environ.get("SANDBOX_DB_URL", "")
+# We derive the Sandbox URL from the main DATABASE_URL to ensure we are 
+# connecting to the same host/port, but as the restricted 'sandbox_user'
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    if os.getenv("RENDER") or os.getenv("NETLIFY"):
+        raise ValueError("CRITICAL: DATABASE_URL is missing in production. Sandbox cannot initialize.")
+    # Local fallback
+    SANDBOX_DB_URL = "postgresql://sandbox_user:sandbox_secure_password@localhost:5432/postgres"
+else:
+    # We need a standard postgresql:// URI for psycopg.connect (no +psycopg prefix)
+    clean_url = DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
+    
+    # We split the URL to replace the user/pass part
+    # Format: postgresql://[user]:[pass]@[host]:[port]/[db]
+    try:
+        parts = clean_url.split("@")
+        if len(parts) == 2:
+            # Replace the part before the @ with sandbox credentials
+            SANDBOX_DB_URL = f"postgresql://sandbox_user:sandbox_secure_password@{parts[1]}"
+        else:
+            SANDBOX_DB_URL = clean_url # Fallback if parsing fails
+    except Exception:
+        SANDBOX_DB_URL = clean_url
 
 class SandboxExecutionError(Exception):
     pass
