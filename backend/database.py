@@ -9,9 +9,16 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Supabase URIs often start with postgresql:// but SQLAlchemy 2.0 + psycopg3 
-# requires postgresql+psycopg://
+# requires postgresql+psycopg://. We also disable prepared statements for the pooler.
 if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+    
+    # Disable prepared statements for PgBouncer/Supabase Pooler compatibility
+    if "pooler.supabase.com" in DATABASE_URL:
+        if "?" in DATABASE_URL:
+            DATABASE_URL += "&prepare_threshold=0"
+        else:
+            DATABASE_URL += "?prepare_threshold=0"
 
 if not DATABASE_URL:
     # Fallback for local development ONLY

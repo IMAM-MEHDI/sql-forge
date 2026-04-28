@@ -13,11 +13,12 @@ def seed_level_1():
     # Check if level already exists
     existing_level = db.query(Level).filter(Level.title.like("Level 1%")).first()
     if existing_level:
-        print("Level 1 already exists!")
+        print("Level 1 already exists! Skipping...")
         db.close()
         return
 
     level1 = Level(
+        id='5e8b6dca-2c68-4269-98f6-8776daf1c290',
         title="Level 1: Employee Retrieval",
         description="Your first task is simple: the HR department has lost their employee spreadsheet. Write a SQL query to retrieve ALL columns and rows from the `employees` table so they can rebuild it.",
         difficulty="Easy",
@@ -60,6 +61,7 @@ def seed_level_2():
         return
 
     level2 = Level(
+        id='e2d31b8a-7561-4b5c-a348-fd8c71113a42',
         title="Level 2: Filtering Departments",
         description="The Engineering lead needs a list of their team members. Write a SQL query to retrieve all columns from the `employees` table, but ONLY for those who work in the 'Engineering' department.",
         difficulty="Easy",
@@ -97,6 +99,7 @@ def seed_level_3():
         return
 
     level3 = Level(
+        id='39295fc1-98e7-40cd-8224-58c6a61dd796',
         title="Level 3: Salary Sorting",
         description="The finance department needs to analyze payroll. Retrieve all columns from the `employees` table, but order the results by `salary` from highest to lowest (descending).",
         difficulty="Easy",
@@ -186,6 +189,7 @@ def seed_level_6():
         return
 
     level6 = Level(
+        id='a522e0fa-c221-4210-9e52-b314477abff9',
         title="Level 6: Joining Teams",
         description="Connect the `employees` and `departments` tables. Retrieve the employee `name` and their `department_name` using an INNER JOIN.",
         difficulty="Medium",
