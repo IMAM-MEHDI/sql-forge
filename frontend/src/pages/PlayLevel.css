@@ -176,14 +176,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.03);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.9);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  position: relative;
+  z-index: 20;
 }
 
 .editor-label {
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 1rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -223,6 +225,7 @@
   padding: 0;
   border: none;
   position: relative;
+  z-index: 10;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
   overflow: hidden;

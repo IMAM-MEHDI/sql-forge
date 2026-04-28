@@ -642,13 +642,15 @@ h2 {
 /* Ranking Styles */
 .rank-top-3 { background: rgba(255, 255, 255, 0.02); }
 .rank-1-score {
-  color: #fbbf24 !important;
-  background: rgba(251, 191, 36, 0.1) !important;
+  color: #fef3c7 !important;
+  background: #3e3828 !important; /* Pre-blended solid background */
   padding: 4px 12px;
+  font-weight: 800;
 }
 .gold-badge {
-  background: rgba(251, 191, 36, 0.1);
-  color: #fbbf24;
+  background: #3e3828;
+  color: #fef3c7;
+  font-weight: 800;
 }
 
 .btn-icon {
@@ -696,9 +698,10 @@ h2 {
 }
 
 /* Icon Boxes */
-.icon-box-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-.icon-box-primary { background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); }
-.icon-box-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+/* Icon Boxes with High Contrast Solid Backgrounds */
+.icon-box-success { background: #1a2e28; color: #a7f3d0; font-weight: 700; }
+.icon-box-primary { background: #1e293b; color: #bfdbfe; font-weight: 700; }
+.icon-box-warning { background: #342a1a; color: #fde68a; font-weight: 700; }
 
 .mt-4 { margin-top: 4px !important; }
 
