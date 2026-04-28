@@ -37,10 +37,7 @@ export default function PlayLevel() {
   const [result, setResult] = useState<QueryResult | null>(null);
 
   useEffect(() => {
-    // Reset state immediately when ID changes for a "fresh" feel
-    setResult(null);
-    setQuery('');
-    setLoading(true);
+    // Component now remounts on ID change due to 'key={id}', so state is already fresh
     window.scrollTo(0, 0);
 
     if (!localStorage.getItem('token')) {
@@ -56,7 +53,7 @@ export default function PlayLevel() {
         ]);
         
         setLevel(levelRes.data);
-        setQuery('');
+        setQuery(levelRes.data.example_query ?? '');
         
         const currentIndex = allRes.data.findIndex((l: {id: string}) => l.id === id);
         if (currentIndex !== -1 && currentIndex < allRes.data.length - 1) {
@@ -188,10 +185,23 @@ export default function PlayLevel() {
                   onChange={(val) => setQuery(val || '')}
                   options={{ 
                     minimap: { enabled: false }, 
-                    fontSize: 15, 
-                    padding: { top: 20 },
+                    fontSize: 20, 
+                    padding: { top: 30, bottom: 30 },
                     scrollBeyondLastLine: false,
-                    fontFamily: 'JetBrains Mono, monospace'
+                    fontFamily: 'JetBrains Mono, monospace',
+                    automaticLayout: true,
+                    roundedSelection: true,
+                    renderLineHighlight: 'all',
+                    cursorStyle: 'line',
+                    cursorBlinking: 'smooth',
+                    smoothScrolling: true,
+                    lineNumbersMinChars: 4,
+                    glyphMargin: false,
+                    folding: false,
+                    scrollbar: {
+                      vertical: 'hidden',
+                      horizontal: 'hidden'
+                    }
                   }}
                 />
               </div>

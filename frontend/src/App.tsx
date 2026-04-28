@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -53,7 +53,9 @@ function AnimatedRoutes() {
         
         <Route path="/level/:id" element={
           <ProtectedRoute>
-            <PageTransition variant="zoom"><PlayLevel /></PageTransition>
+            <PageTransition variant="zoom">
+              <PlayLevelWrapper />
+            </PageTransition>
           </ProtectedRoute>
         } />
         
@@ -77,6 +79,11 @@ function AnimatedRoutes() {
       </Routes>
     </AnimatePresence>
   );
+}
+
+function PlayLevelWrapper() {
+  const { id } = useParams();
+  return <PlayLevel key={id} />;
 }
 
 function App() {
