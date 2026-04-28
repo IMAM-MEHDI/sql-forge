@@ -1,35 +1,34 @@
 import psycopg
 import os
 from dotenv import load_dotenv
+from urllib.parse import urlparse, urlunparse
 
 load_dotenv()
 
-load_dotenv()
-
-# We derive the Sandbox URL from the main DATABASE_URL to ensure we are 
-# connecting to the same host/port, but as the restricted 'sandbox_user'
+# 1. Fetch and Parse the main DATABASE_URL
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    if os.getenv("RENDER") or os.getenv("NETLIFY"):
-        raise ValueError("CRITICAL: DATABASE_URL is missing in production. Sandbox cannot initialize.")
-    # Local fallback
-    SANDBOX_DB_URL = "postgresql://sandbox_user:sandbox_secure_password@localhost:5432/postgres"
-else:
-    # We need a standard postgresql:// URI for psycopg.connect (no +psycopg prefix)
-    clean_url = DATABASE_URL.replace("postgresql+psycopg://", "postgresql://")
+def derive_sandbox_url(main_url: str) -> str:
+    if not main_url:
+        return "postgresql://sandbox_user:sandbox_secure_password@localhost:5432/postgres"
     
-    # We split the URL to replace the user/pass part
-    # Format: postgresql://[user]:[pass]@[host]:[port]/[db]
     try:
-        parts = clean_url.split("@")
-        if len(parts) == 2:
-            # Replace the part before the @ with sandbox credentials
-            SANDBOX_DB_URL = f"postgresql://sandbox_user:sandbox_secure_password@{parts[1]}"
-        else:
-            SANDBOX_DB_URL = clean_url # Fallback if parsing fails
+        # Standardize prefix for parsing
+        clean_url = main_url.replace("postgresql+psycopg://", "postgresql://")
+        u = urlparse(clean_url)
+        
+        # Replace credentials but keep host, port, and database name
+        # We use the credentials defined in database/sandbox_setup.sql
+        new_netloc = f"sandbox_user:sandbox_secure_password@{u.hostname}"
+        if u.port:
+            new_netloc += f":{u.port}"
+            
+        return urlunparse(u._replace(netloc=new_netloc))
     except Exception:
-        SANDBOX_DB_URL = clean_url
+        # Final fallback if parsing fails
+        return main_url
+
+SANDBOX_DB_URL = derive_sandbox_url(DATABASE_URL)
 
 class SandboxExecutionError(Exception):
     pass
@@ -41,7 +40,9 @@ def execute_user_query(schema_definition: str, user_query: str):
     conn = None
     try:
         # 1. Connect to the database as the restricted sandbox user
-        conn = psycopg.connect(SANDBOX_DB_URL)
+        # CRITICAL: We must disable prepared statements for the Supabase Pooler here too!
+        conn = psycopg.connect(SANDBOX_DB_URL, prepare_threshold=None)
+        
         # Ensure we are in a transaction so we can rollback everything
         conn.autocommit = False
         cursor = conn.cursor()
@@ -51,7 +52,6 @@ def execute_user_query(schema_definition: str, user_query: str):
         cursor.execute("SET search_path TO sandbox;")
 
         # 3. Setup the Level Schema
-        # This creates tables and inserts data required for this specific challenge.
         cursor.execute(schema_definition)
 
         # 4. Filter malicious queries (Basic layer, DB roles handle the rest)
@@ -66,35 +66,27 @@ def execute_user_query(schema_definition: str, user_query: str):
         if cursor.description:
             columns = [desc.name for desc in cursor.description]
             rows = cursor.fetchall()
-            
-            # Format rows as list of dicts
             result_data = [dict(zip(columns, row)) for row in rows]
         else:
-            # Query did not return rows (e.g., an INSERT without RETURNING)
             columns = []
             result_data = []
 
-        # 7. Force Rollback
-        # This destroys all tables and data created during step 3.
+        # 7. Force Rollback (Never save changes)
         conn.rollback()
 
         return {"status": "success", "columns": columns, "data": result_data}
 
     except psycopg.errors.QueryCanceled:
-        if conn:
-            conn.rollback()
+        if conn: conn.rollback()
         raise SandboxExecutionError("Query timed out. Maximum execution time is 2 seconds.")
     except psycopg.Error as e:
-        if conn:
-            conn.rollback()
+        if conn: conn.rollback()
         raise SandboxExecutionError(f"Database error: {str(e)}")
     except Exception as e:
-        if conn:
-            conn.rollback()
+        if conn: conn.rollback()
         raise SandboxExecutionError(str(e))
     finally:
-        if conn:
-            conn.close()
+        if conn: conn.close()
 
 def validate_result(user_data: list, expected_data: list):
     """
@@ -103,13 +95,8 @@ def validate_result(user_data: list, expected_data: list):
     if len(user_data) != len(expected_data):
         return False, "Row count mismatch."
 
-    # Compare row by row
     for i in range(len(user_data)):
-        user_row = user_data[i]
-        expected_row = expected_data[i]
-        
-        # Simple dict equality (checks keys and values)
-        if user_row != expected_row:
+        if user_data[i] != expected_data[i]:
              return False, f"Mismatch at row {i+1}."
              
     return True, "Success"
