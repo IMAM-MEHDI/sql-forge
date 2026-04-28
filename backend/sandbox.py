@@ -1,9 +1,14 @@
 import psycopg
 import os
+import logging
 from dotenv import load_dotenv
 from urllib.parse import urlparse, urlunparse
 
 load_dotenv()
+
+# Setup logging to help us debug the cloud connection
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("sandbox")
 
 # 1. Fetch and Parse the main DATABASE_URL
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -18,14 +23,15 @@ def derive_sandbox_url(main_url: str) -> str:
         u = urlparse(clean_url)
         
         # Replace credentials but keep host, port, and database name
-        # We use the credentials defined in database/sandbox_setup.sql
         new_netloc = f"sandbox_user:sandbox_secure_password@{u.hostname}"
         if u.port:
             new_netloc += f":{u.port}"
+        else:
+            new_netloc += ":6543" # Force pooler port if missing
             
         return urlunparse(u._replace(netloc=new_netloc))
-    except Exception:
-        # Final fallback if parsing fails
+    except Exception as e:
+        logger.error(f"Sandbox URL derivation failed: {e}")
         return main_url
 
 SANDBOX_DB_URL = derive_sandbox_url(DATABASE_URL)
@@ -39,25 +45,30 @@ def execute_user_query(schema_definition: str, user_query: str):
     """
     conn = None
     try:
-        # 1. Connect to the database as the restricted sandbox user
-        # CRITICAL: We must disable prepared statements for the Supabase Pooler here too!
-        conn = psycopg.connect(SANDBOX_DB_URL, prepare_threshold=None)
+        logger.info(f"Connecting to Sandbox DB at {urlparse(SANDBOX_DB_URL).hostname}")
         
-        # Ensure we are in a transaction so we can rollback everything
+        # 1. Connect to the database
+        # We use a 5-second timeout to avoid hanging the app
+        conn = psycopg.connect(
+            SANDBOX_DB_URL, 
+            prepare_threshold=None,
+            connect_timeout=5
+        )
+        
         conn.autocommit = False
         cursor = conn.cursor()
 
-        # 2. Enforce strict timeouts and schema restrictions
-        cursor.execute("SET statement_timeout = '2s';")
+        # 2. Enforce restrictions
+        cursor.execute("SET statement_timeout = '3s';")
         cursor.execute("SET search_path TO sandbox;")
 
         # 3. Setup the Level Schema
         cursor.execute(schema_definition)
 
-        # 4. Filter malicious queries (Basic layer, DB roles handle the rest)
+        # 4. Filter malicious keywords
         upper_query = user_query.upper()
         if any(keyword in upper_query for keyword in ["DROP ", "DELETE ", "ALTER ", "TRUNCATE "]):
-            raise SandboxExecutionError("Query contains restricted keywords. Only SELECT is allowed for these levels.")
+            raise SandboxExecutionError("Query contains restricted keywords. Only SELECT is allowed.")
 
         # 5. Execute the User's Query
         cursor.execute(user_query)
@@ -71,18 +82,17 @@ def execute_user_query(schema_definition: str, user_query: str):
             columns = []
             result_data = []
 
-        # 7. Force Rollback (Never save changes)
+        # 7. Force Rollback
         conn.rollback()
 
         return {"status": "success", "columns": columns, "data": result_data}
 
-    except psycopg.errors.QueryCanceled:
-        if conn: conn.rollback()
-        raise SandboxExecutionError("Query timed out. Maximum execution time is 2 seconds.")
     except psycopg.Error as e:
+        logger.error(f"Psycopg Database Error: {e}")
         if conn: conn.rollback()
         raise SandboxExecutionError(f"Database error: {str(e)}")
     except Exception as e:
+        logger.error(f"General Sandbox Error: {e}")
         if conn: conn.rollback()
         raise SandboxExecutionError(str(e))
     finally:
