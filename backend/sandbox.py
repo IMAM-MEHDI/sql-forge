@@ -6,7 +6,7 @@ from urllib.parse import urlparse, urlunparse
 
 load_dotenv()
 
-# Setup logging to help us debug the cloud connection
+# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sandbox")
 
@@ -22,12 +22,26 @@ def derive_sandbox_url(main_url: str) -> str:
         clean_url = main_url.replace("postgresql+psycopg://", "postgresql://")
         u = urlparse(clean_url)
         
+        # EXTRACT TENANT ID: In Supabase poolers, the username is usually 'postgres.tenant-id'
+        # We need our sandbox user to also have '.tenant-id' appended.
+        main_user = u.username or "postgres"
+        tenant_id = ""
+        if "." in main_user:
+            tenant_id = main_user.split(".")[-1]
+            
+        # Reconstruct the username with the tenant ID
+        sandbox_username = "sandbox_user"
+        if tenant_id:
+            sandbox_username = f"sandbox_user.{tenant_id}"
+            
+        logger.info(f"Deriving sandbox URL with user: {sandbox_username}")
+        
         # Replace credentials but keep host, port, and database name
-        new_netloc = f"sandbox_user:sandbox_secure_password@{u.hostname}"
+        new_netloc = f"{sandbox_username}:sandbox_secure_password@{u.hostname}"
         if u.port:
             new_netloc += f":{u.port}"
         else:
-            new_netloc += ":6543" # Force pooler port if missing
+            new_netloc += ":6543"
             
         return urlunparse(u._replace(netloc=new_netloc))
     except Exception as e:
@@ -45,14 +59,12 @@ def execute_user_query(schema_definition: str, user_query: str):
     """
     conn = None
     try:
-        logger.info(f"Connecting to Sandbox DB at {urlparse(SANDBOX_DB_URL).hostname}")
-        
         # 1. Connect to the database
-        # We use a 5-second timeout to avoid hanging the app
+        # We use prepare_threshold=None for pooler compatibility
         conn = psycopg.connect(
             SANDBOX_DB_URL, 
             prepare_threshold=None,
-            connect_timeout=5
+            connect_timeout=10
         )
         
         conn.autocommit = False
